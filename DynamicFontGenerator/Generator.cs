@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content.Pipeline;
 using Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler;
@@ -10,110 +11,113 @@ using System.Linq;
 
 namespace DynamicFontGenerator
 {
-	public sealed class Generator : Game
-	{
-		// ReSharper disable once NotAccessedField.Local
-		private readonly GraphicsDeviceManager _graphics;
+    public sealed class Generator : Game
+    {
+        private List<GeneratInfo> descFiles { get; set; }
 
-		private static void Main()
-		{
-			using (var game = new Generator())
-			{
-				game.Run();
-			}
-		}
+        // ReSharper disable once NotAccessedField.Local
+        private readonly GraphicsDeviceManager _graphics;
 
-		public Generator()
-		{
-			ReLogicPipeLineAssembly = typeof(DynamicFontDescription).Assembly;
-			XnaPipeLineAssembly = typeof(ContentCompiler).Assembly;
+        //private static void Main()
+        //{
+        //	using (var game = new Generator())
+        //	{
+        //		game.Run();
+        //	}
+        //}
 
-			var type = XnaPipeLineAssembly.GetType("Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler.ContentCompiler");
+        public Generator(List<GeneratInfo> descFiles)
+        {
+            this.descFiles = descFiles;
 
-			var constructor = type
-				.GetConstructors(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)
-				.First();
-			_compiler = (ContentCompiler)constructor.Invoke(null);
-			_compileMethod = type.GetMethod("Compile", BindingFlags.NonPublic | BindingFlags.Instance);
-			_graphics = new GraphicsDeviceManager(this);
-			_context = new DfgContext(this);
-			_importContext = new DfgImporterContext();
-			_importer = (ContentImporter<DynamicFontDescription>)Activator.CreateInstance(ReLogicPipeLineAssembly.GetType("ReLogic.Content.Pipeline.DynamicFontImporter"));
-			_processor = new DynamicFontProcessor();
+            ReLogicPipeLineAssembly = typeof(DynamicFontDescription).Assembly;
+            XnaPipeLineAssembly = typeof(ContentCompiler).Assembly;
 
-			Content.RootDirectory = "Content";
-		}
+            var type = XnaPipeLineAssembly.GetType("Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler.ContentCompiler");
 
-		protected override void Initialize()
-		{
-			base.Initialize();
+            var constructor = type
+                .GetConstructors(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)
+                .First();
+            _compiler = (ContentCompiler)constructor.Invoke(null);
+            _compileMethod = type.GetMethod("Compile", BindingFlags.NonPublic | BindingFlags.Instance);
+            _graphics = new GraphicsDeviceManager(this);
+            _context = new DfgContext(this);
+            _importContext = new DfgImporterContext();
+            _importer = (ContentImporter<DynamicFontDescription>)Activator.CreateInstance(ReLogicPipeLineAssembly.GetType("ReLogic.Content.Pipeline.DynamicFontImporter"));
+            _processor = new DynamicFontProcessor();
 
-			CompileFonts();
+            Content.RootDirectory = "Content";
+        }
 
-			Environment.Exit(0);
-		}
+        protected override void Initialize()
+        {
+            base.Initialize();
 
-		private void CompileFonts()
-		{
-			var descFiles = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.dynamicfont").ToList();
+            CompileFonts();
 
-			Console.WriteLine("Description file detected: {0}", descFiles.Count);
+            //Environment.Exit(0);
+            Exit();
+        }
 
-			foreach (var descFilePath in descFiles)
-			{
-				var descFileName = Path.GetFileName(descFilePath);
+        private void CompileFonts()
+        {
+            //var descFiles = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.dynamicfont").ToList();
 
-				Console.WriteLine("* {0}", descFileName);
-			}
+            Console.WriteLine("Description file detected: {0}", descFiles.Count);
 
-			Console.WriteLine();
+            foreach (var descFilePath in descFiles.Select(x => x.DescFilePath))
+            {
+                var descFileName = Path.GetFileName(descFilePath);
 
-			foreach (var descFilePath in descFiles)
-			{
-				var descFileName = Path.GetFileName(descFilePath);
+                Console.WriteLine("* {0}", descFileName);
+            }
 
-				Console.Write("Start loading description file: {0}", descFileName);
+            foreach (var descFilePath in descFiles.Select(x => x.DescFilePath))
+            {
+                var descFileName = Path.GetFileName(descFilePath);
 
-				var description = _importer.Import(descFilePath, _importContext);
-				Console.WriteLine(" ..Done!");
+                Console.Write("Start loading description file: {0}", descFileName);
 
-				var fileName = Path.GetFileNameWithoutExtension(descFileName) + ".xnb";
+                var description = _importer.Import(descFilePath, _importContext);
+                Console.WriteLine(" ..Done!");
 
-				Console.Write("Start compiling font.");
-				var content = _processor.Process(description, _context);
-				Console.WriteLine(".Done!");
+                var fileName = Path.GetFileNameWithoutExtension(descFileName) + ".xnb";
 
-				Console.Write("Start compiling font content file: {0}", fileName);
+                Console.Write("Start compiling font.");
+                var content = _processor.Process(description, _context);
+                Console.WriteLine(".Done!");
 
-				using (var fs = new FileStream(fileName, FileMode.Create))
-				{
-					_compileMethod.Invoke(_compiler,
-						new object[]
-						{
-							fs, content, TargetPlatform.Windows, GraphicsProfile.Reach, true, Environment.CurrentDirectory,
-							Environment.CurrentDirectory
-						});
-				}
+                Console.Write("Start compiling font content file: {0}", fileName);
 
-				Console.WriteLine(" ..Done!");
-				Console.WriteLine();
-			}
-		}
+                using (var fs = new FileStream(fileName, FileMode.Create))
+                {
+                    _compileMethod.Invoke(_compiler,
+                        new object[]
+                        {
+                            fs, content, TargetPlatform.Windows, GraphicsProfile.Reach, true, Environment.CurrentDirectory,
+                            Environment.CurrentDirectory
+                        });
+                }
 
-		private readonly ContentCompiler _compiler;
+                Console.WriteLine(" ..Done!");
+                Console.WriteLine();
+            }
+        }
 
-		private readonly MethodInfo _compileMethod;
+        private readonly ContentCompiler _compiler;
 
-		private readonly DfgContext _context;
+        private readonly MethodInfo _compileMethod;
 
-		private readonly DfgImporterContext _importContext;
+        private readonly DfgContext _context;
 
-		private readonly ContentImporter<DynamicFontDescription> _importer;
+        private readonly DfgImporterContext _importContext;
 
-		private readonly DynamicFontProcessor _processor;
+        private readonly ContentImporter<DynamicFontDescription> _importer;
 
-		public readonly Assembly ReLogicPipeLineAssembly;
+        private readonly DynamicFontProcessor _processor;
 
-		public readonly Assembly XnaPipeLineAssembly;
-	}
+        public readonly Assembly ReLogicPipeLineAssembly;
+
+        public readonly Assembly XnaPipeLineAssembly;
+    }
 }
