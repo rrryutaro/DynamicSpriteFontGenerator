@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content.Pipeline;
 using Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler;
@@ -12,19 +13,23 @@ namespace DynamicFontGenerator
 {
     public sealed class Generator : Game
     {
+        private List<GeneratInfo> descFiles { get; set; }
+
         // ReSharper disable once NotAccessedField.Local
         private readonly GraphicsDeviceManager _graphics;
 
-        private static void Main()
-        {
-            using (var game = new Generator())
-            {
-                game.Run();
-            }
-        }
+        //private static void Main()
+        //{
+        //	using (var game = new Generator())
+        //	{
+        //		game.Run();
+        //	}
+        //}
 
-        public Generator()
+        public Generator(List<GeneratInfo> descFiles)
         {
+            this.descFiles = descFiles;
+
             ReLogicPipeLineAssembly = typeof(DynamicFontDescription).Assembly;
             XnaPipeLineAssembly = typeof(ContentCompiler).Assembly;
 
@@ -50,25 +55,24 @@ namespace DynamicFontGenerator
 
             CompileFonts();
 
-            Environment.Exit(0);
+            //Environment.Exit(0);
+            Exit();
         }
 
         private void CompileFonts()
         {
-            var descFiles = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.dynamicfont").ToList();
+            //var descFiles = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.dynamicfont").ToList();
 
             Console.WriteLine("Description file detected: {0}", descFiles.Count);
 
-            foreach (var descFilePath in descFiles)
+            foreach (var descFilePath in descFiles.Select(x => x.DescFilePath))
             {
                 var descFileName = Path.GetFileName(descFilePath);
 
                 Console.WriteLine("* {0}", descFileName);
             }
 
-            Console.WriteLine();
-
-            foreach (var descFilePath in descFiles)
+            foreach (var descFilePath in descFiles.Select(x => x.DescFilePath))
             {
                 var descFileName = Path.GetFileName(descFilePath);
 
